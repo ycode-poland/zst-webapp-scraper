@@ -20,25 +20,18 @@ pub struct QueryStr {
 
 // GET /home
 pub async fn home(query: web::Query<QueryStr>) -> HttpResponse {
-    let response = reqwest::get(
-        "https://zstrzeszow.pl/",
-    )
-        .await
-        .unwrap()
-        .text()
-        .await
-        .unwrap();
+    let response = reqwest::get("https://zstrzeszow.pl/").await.unwrap().text().await.unwrap();
 
     let document = scraper::Html::parse_document(&response);
     let selector_value = "#content_4 > ul > li";
-    let announcement_selector = scraper::Selector::parse(&selector_value).unwrap();
+    let announcement_selector = scraper::Selector::parse(selector_value).unwrap();
     let titles = document.select(&announcement_selector).map(|x| x.inner_html());
 
     let mut announcements: Vec<Annoucement> = Vec::new();
 
     titles
         .zip(1..101)
-        .for_each(|(item, number)| {
+        .for_each(|(item, _i)| {
             let fragment = Html::parse_fragment(&item);
             let date_selector = Selector::parse("span").unwrap();
             let text_selector = Selector::parse("a").unwrap();

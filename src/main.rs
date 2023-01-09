@@ -5,16 +5,42 @@ use actix_web::{
 };
 use actix_cors::Cors;
 use actix_web::middleware::Logger;
+use std::fs::File;
+use std::io::Read;
+use serde::Deserialize;
 
 mod entities;
 mod controllers;
 
 mod utils;
+use utils::str_convert::convert;
 
 use crate::controllers::plan_controller;
+use crate::entities::class::Class;
+
+#[derive(Debug, Clone)]
+pub struct AppState {
+    pub class_list: Vec<Class>,
+}
+
+#[derive(Deserialize)]
+struct Config {
+    address: String,
+    port: u16,
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let mut file: File = File::open("config.json").unwrap();
+    let mut data: String = String::new();
+    file.read_to_string(&mut data).unwrap();
+    let json: Config = serde_json::from_str(&data).unwrap();
+
+    let bind: (&str, u16) = (convert(json.address.clone()), json.port);
+
+    let state = AppState {
+        class_list: vec![ Class { index: "".to_string(), name: "".to_string(), year: 0, } ],
+    };
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -25,14 +51,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(Logger::new("\"%a %s %r\" %b bytes %T s"))
             .wrap(cors)
+            .app_data(web::Data::new(state.clone()))
             .route("/", web::get().to(controllers::home))
             .route("/plans", web::get().to(plan_controller::plans))
             .route("/plans/{id}", web::get().to(plan_controller::plan))
-            // .service(
-            //     web::scope("/api")
-            //         .service(controllers::home)
-            // )
-    }).bind(("192.172.0.103", 3000))?
+    }).bind(bind)?
         .run()
         .await
 }

@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 use actix_web::{
-    HttpResponse,
-    web, get
+    HttpResponse, web
 };
 
-use scraper::{ElementRef, Html};
+use scraper::Html;
 use scraper::Selector;
 
-use serde::Deserialize;
 use serde_json::json;
 
 use crate::entities::class::Class;
@@ -29,14 +27,14 @@ pub async fn plans() -> HttpResponse {
 
     let document = scraper::Html::parse_document(&response);
     let selector_value = "body > ul:nth-child(2) > li";
-    let plan_selector = scraper::Selector::parse(&selector_value).unwrap();
+    let plan_selector = scraper::Selector::parse(selector_value).unwrap();
     let plans = document.select(&plan_selector).map(|x| x.inner_html());
 
     let mut classes: Vec<Class> = Vec::new();
 
     plans
         .zip(1..30)
-        .for_each(|(item, number)| {
+        .for_each(|(item, _i)| {
             let fragment = Html::parse_fragment(&item);
             let selector = Selector::parse("a").unwrap();
 
@@ -77,8 +75,7 @@ pub async fn plan(path: web::Path<String>) -> HttpResponse {
 
     let document = Html::parse_document(&response);
     let selector_value = ".tabela > tbody > tr";
-    let plan_selector = Selector::parse(&selector_value).unwrap();
-    // let plans = document.select(&plan_selector).map(|x| x.inner_html());
+    let plan_selector = Selector::parse(selector_value).unwrap();
     let plans = document.select(&plan_selector);
 
     let mut hours: Vec<String> = Vec::new();
@@ -101,10 +98,9 @@ pub async fn plan(path: web::Path<String>) -> HttpResponse {
 
                 let lesson: Option<Column> = if cell.inner_html() != "&nbsp;" {
                     let group_check_selector = Selector::parse("br").unwrap();
-                    // let group_check: Result<ElementRef, String> = Ok(cell.select(&group_check_selector).next().unwrap_or(Err("".to_string())));
-                    let group_check = cell.select(&group_check_selector).next().and_then(|n| Some(n.html())).unwrap_or("".to_string());
+                    let group_check = cell.select(&group_check_selector).next().map(|n| n.html()).unwrap_or_else(|| "".to_string());
 
-                    if group_check == "<br>".to_string() {
+                    if group_check == "<br>" {
                         let subject_selector = Selector::parse("span.p").unwrap();
                         let teacher_selector = Selector::parse("a.n").unwrap();
                         let classroom_selector = Selector::parse("span.s").unwrap();
@@ -128,7 +124,6 @@ pub async fn plan(path: web::Path<String>) -> HttpResponse {
                                 }
                             )
                         }
-                        
                         Some(
                             Column {
                                 lesson_number: j,
@@ -173,7 +168,7 @@ pub async fn plan(path: web::Path<String>) -> HttpResponse {
                 }
             });
 
-            hours.push(hour.inner_html().replace(" ", ""));
+            hours.push(hour.inner_html().replace(' ', ""));
         }
     });
 
