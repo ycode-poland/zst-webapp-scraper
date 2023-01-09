@@ -19,8 +19,8 @@ pub struct QueryStr {
 
 
 // GET /home
-pub async fn home(query: web::Query<QueryStr>) -> HttpResponse {
-    let response = reqwest::get("https://zstrzeszow.pl/").await.unwrap().text().await.unwrap();
+pub async fn announcements(query: web::Query<QueryStr>) -> HttpResponse {
+    let response = reqwest::get("http://www.zstrzeszow.pl/").await.unwrap().text().await.unwrap();
 
     let document = scraper::Html::parse_document(&response);
     let selector_value = "#content_4 > ul > li";

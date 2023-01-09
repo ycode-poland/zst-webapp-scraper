@@ -1,3 +1,4 @@
+// This looks very bad
 pub fn parse(name: String) -> String {
     match name.as_str() {
         "1AT" => String::from("o1"),

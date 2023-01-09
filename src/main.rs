@@ -1,7 +1,8 @@
+use actix_web::http::header::ContentType;
 use actix_web::{
     HttpServer,
     App,
-    web
+    web, HttpResponse
 };
 use actix_cors::Cors;
 use actix_web::middleware::Logger;
@@ -15,7 +16,7 @@ mod controllers;
 mod utils;
 use utils::str_convert::convert;
 
-use crate::controllers::plan_controller;
+use crate::controllers::plan_controller::*;
 use crate::entities::class::Class;
 
 #[derive(Debug, Clone)]
@@ -52,9 +53,10 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::new("\"%a %s %r\" %b bytes %T s"))
             .wrap(cors)
             .app_data(web::Data::new(state.clone()))
-            .route("/", web::get().to(controllers::home))
-            .route("/plans", web::get().to(plan_controller::plans))
-            .route("/plans/{id}", web::get().to(plan_controller::plan))
+            .route("/", web::get().to(|| async { HttpResponse::Ok().content_type(ContentType::plaintext()).body("Thank you for using zst-webapp-scrapper by ycode.") }))
+            .route("/plans", web::get().to(plans::plans))
+            .route("/plans/{id}", web::get().to(plan::plan))
+            .route("/announcements", web::get().to(controllers::announcements))
     }).bind(bind)?
         .run()
         .await

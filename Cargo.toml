@@ -1,5 +1,5 @@
 [package]
-name = "zst-api"
+name = "zst-webapp-scraper"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 
 reqwest = { version = "0.11", features = ["json"] }
-scraper = "0.12.0"
+scraper = "0.14.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 actix-web = "4"
