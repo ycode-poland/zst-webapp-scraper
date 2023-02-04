@@ -36,7 +36,6 @@ async fn main() -> std::io::Result<()> {
     let mut data: String = String::new();
     file.read_to_string(&mut data).unwrap();
     let json: Config = serde_json::from_str(&data).unwrap();
-	std::env::set_var("RUST_LOG", "actix_web=info");
 	env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let bind: (&str, u16) = (convert(json.address.clone()), json.port);
