@@ -1,17 +1,13 @@
-use actix_web::http::header::ContentType;
-use actix_web::{
-    HttpServer,
-    App,
-    web, HttpResponse
-};
 use actix_cors::Cors;
+use actix_web::http::header::ContentType;
 use actix_web::middleware::Logger;
+use actix_web::{web, App, HttpResponse, HttpServer};
+use serde::Deserialize;
 use std::fs::File;
 use std::io::Read;
-use serde::Deserialize;
 
-mod entities;
 mod controllers;
+mod entities;
 
 mod utils;
 use utils::str_convert::convert;
@@ -36,12 +32,16 @@ async fn main() -> std::io::Result<()> {
     let mut data: String = String::new();
     file.read_to_string(&mut data).unwrap();
     let json: Config = serde_json::from_str(&data).unwrap();
-	env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let bind: (&str, u16) = (convert(json.address.clone()), json.port);
 
     let state = AppState {
-        class_list: vec![ Class { index: "".to_string(), name: "".to_string(), year: 0, } ],
+        class_list: vec![Class {
+            index: "".to_string(),
+            name: "".to_string(),
+            year: 0,
+        }],
     };
 
     HttpServer::new(move || {
@@ -54,12 +54,20 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::new("\"%a %s %r\" %b bytes %T s"))
             .wrap(cors)
             .app_data(web::Data::new(state.clone()))
-            .route("/", web::get().to(|| async { HttpResponse::Ok().content_type(ContentType::plaintext()).body("Thank you for using zst-webapp-scrapper by ycode.") }))
+            .route(
+                "/",
+                web::get().to(|| async {
+                    HttpResponse::Ok()
+                        .content_type(ContentType::plaintext())
+                        .body("Thank you for using zst-webapp-scrapper by ycode.")
+                }),
+            )
             .route("/plans", web::get().to(plans::plans))
             .route("/plans/{id}", web::get().to(plan::plan))
-			.route("/teachers", web::get().to(teachers::teachers))
+            .route("/teachers", web::get().to(teachers::teachers))
             .route("/announcements", web::get().to(controllers::announcements))
-    }).bind(bind)?
-        .run()
-        .await
+    })
+    .bind(bind)?
+    .run()
+    .await
 }
