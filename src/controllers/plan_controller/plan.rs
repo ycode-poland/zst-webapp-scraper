@@ -9,7 +9,7 @@ use serde_json::json;
 use crate::{
     entities::table::{Column, PlanColumn, PlanRow, Subject},
     utils::{
-        class_to_id,
+        list::*,
         scraper::{get_html, Scraper},
     },
 };
@@ -43,12 +43,13 @@ impl Default for PlanQuery {
  * @route GET /plan/:id
  */
 pub async fn plan(path: web::Path<String>, query: web::Query<PlanQuery>) -> HttpResponse {
-    let response = get_html(format!(
-        "http://www.zstrzeszow.pl/plan/plany/{}.html",
-        class_to_id::parse(path.into_inner())
-    ))
-    .await
-    .unwrap();
+	let id = if path.as_ref()[0..1].parse::<u8>().is_ok() {
+		get_id(&path.into_inner(), IdType::Class).await
+	} else {
+		get_id(&path.into_inner(), IdType::Teacher).await
+	};
+
+    let response = get_html(format!("http://www.zstrzeszow.pl/plan/plany/{}.html", id)).await.unwrap();
 
     let document = Html::parse_document(&response);
     let plans_s = ".tabela > tbody > tr".to_sel();
@@ -89,21 +90,15 @@ pub async fn plan(path: web::Path<String>, query: web::Query<PlanQuery>) -> Http
 						let mut teachers = Vec::new();
 						let mut classrooms = Vec::new();
 
-						cell.select(&"span.p".to_sel())
-							.zip(0..)
-							.for_each(|(x, _num)| subjects_tmp.push(x.inner_html()));
-						cell.select(&"a.n".to_sel())
-							.zip(0..)
-							.for_each(|(x, _num)| teachers.push(x.inner_html()));
-						cell.select(&"span.s".to_sel())
-							.zip(0..)
-							.for_each(|(x, _num)| classrooms.push(x.inner_html()));
+						cell.select(&"span.p".to_sel()).zip(0..).for_each(|(x, _num)| subjects_tmp.push(x.inner_html()));
+						cell.select(&".n".to_sel()).zip(0..).for_each(|(x, _num)| teachers.push(x.inner_html()));
+						cell.select(&"span.s".to_sel()).zip(0..).for_each(|(x, _num)| classrooms.push(x.inner_html()));
 
 						for (i, subject) in subjects_tmp.iter().enumerate() {
 							subjects.push(Subject {
 								subject: subject.clone(),
-								teacher: teachers[i].clone(),
-								classroom: classrooms[i].clone(),
+								teacher: teachers.get(i).unwrap_or(&"".to_owned()).clone(),
+								classroom: classrooms.get(i).unwrap_or(&"".to_owned()).clone(),
 							})
 						}
 						Some(Column {
@@ -111,12 +106,23 @@ pub async fn plan(path: web::Path<String>, query: web::Query<PlanQuery>) -> Http
 							subjects,
 						})
 					} else {
-						let subject =
-							cell.select(&"span.p".to_sel()).next().unwrap().inner_html();
-						let teacher =
-							cell.select(&"a.n".to_sel()).next().unwrap().inner_html();
-						let classroom =
-							cell.select(&"span.s".to_sel()).next().unwrap().inner_html();
+						let subject = match cell.select(&"span.p".to_sel()).next() {
+							Some(v) => v.inner_html(),
+							None => cell.inner_html().split(' ').collect::<Vec<&str>>()[1].to_owned(),
+						};
+						let teacher = match cell.select(&".n".to_sel()).next() {
+						    Some(v) => v.inner_html(),
+							None => cell.inner_html().split(' ').collect::<Vec<&str>>()[0].to_owned(),
+						};
+						let classroom = match cell.select(&"span.s".to_sel()).next() {
+						    Some(v) => v.inner_html(),
+							None => {
+								let _cell = cell.inner_html();
+								let vec = _cell.split(' ').collect::<Vec<&str>>();
+								let len = vec.len();
+								vec[len-1].to_owned()
+							},
+						};
 
 						Some(Column {
 							lesson_number: i,
@@ -154,7 +160,6 @@ pub async fn plan(path: web::Path<String>, query: web::Query<PlanQuery>) -> Http
 				},
 				_ => {}
 			}
-
 			hours.push(hour.inner_html().replace(' ', ""));
 		}
 	});
@@ -187,6 +192,4 @@ pub async fn plan(path: web::Path<String>, query: web::Query<PlanQuery>) -> Http
 				.json(json! { plan })
 		},
 	}
-
-
 }

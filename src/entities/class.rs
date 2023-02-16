@@ -12,3 +12,10 @@ impl Class {
         format!("{}. {}{}", &self.index, &self.year.to_string(), &self.name)
     }
 }
+
+#[derive(Debug, Serialize, Clone)]
+pub struct Teacher {
+    pub index: String,
+    pub initials: String,
+    pub name: String,
+}

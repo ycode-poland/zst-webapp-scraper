@@ -57,6 +57,7 @@ async fn main() -> std::io::Result<()> {
             .route("/", web::get().to(|| async { HttpResponse::Ok().content_type(ContentType::plaintext()).body("Thank you for using zst-webapp-scrapper by ycode.") }))
             .route("/plans", web::get().to(plans::plans))
             .route("/plans/{id}", web::get().to(plan::plan))
+			.route("/teachers", web::get().to(teachers::teachers))
             .route("/announcements", web::get().to(controllers::announcements))
     }).bind(bind)?
         .run()
