@@ -9,7 +9,7 @@ use serde_json::json;
 use crate::{
     entities::table::{Column, PlanColumn, PlanRow, Subject},
     utils::{
-        list::*,
+        list::{get_id, IdType},
         scraper::{get_html, Scraper},
     },
 };
@@ -21,7 +21,7 @@ enum Type {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct PlanQuery {
+pub struct Query {
     direction: Option<Type>,
 }
 
@@ -31,7 +31,7 @@ impl Default for Type {
     }
 }
 
-impl Default for PlanQuery {
+impl Default for Query {
     fn default() -> Self {
         Self {
             direction: Some(Type::Column),
@@ -42,14 +42,14 @@ impl Default for PlanQuery {
 /**
  * @route GET /plan/:id
  */
-pub async fn plan(path: web::Path<String>, query: web::Query<PlanQuery>) -> HttpResponse {
+pub async fn plan(path: web::Path<String>, query: web::Query<Query>) -> HttpResponse {
     let id = if path.as_ref()[0..1].parse::<u8>().is_ok() {
         get_id(&path.into_inner(), IdType::Class).await
     } else {
         get_id(&path.into_inner(), IdType::Teacher).await
     };
 
-    let response = get_html(format!("http://www.zstrzeszow.pl/plan/plany/{}.html", id))
+    let response = get_html(format!("http://www.zstrzeszow.pl/plan/plany/{id}.html"))
         .await
         .unwrap();
 
@@ -78,75 +78,71 @@ pub async fn plan(path: web::Path<String>, query: web::Query<PlanQuery>) -> Http
             lesson_cells.zip(0..).for_each(|(cell, j)| {
                 // If w zmiennej
                 // Pozdrawiam tych co nie wierzyli :P
-                let lesson: Option<Column> =
-                    if cell.inner_html() != "&nbsp;" {
-                        let group_check = cell
-                            .select(&"br".to_sel())
-                            .next()
-                            .map(|n| n.html())
-                            .unwrap_or_else(|| "".to_string());
+                let lesson: Option<Column> = if cell.inner_html() == "&nbsp;" {
+                    None
+                } else {
+                    let group_check = cell
+                        .select(&"br".to_sel())
+                        .next()
+                        .map_or_else(String::new, |n| n.html());
 
-                        if group_check == "<br>" {
-                            let mut subjects: Vec<Subject> = Vec::new();
+                    if group_check == "<br>" {
+                        let mut subjects: Vec<Subject> = Vec::new();
 
-                            let mut subjects_tmp = Vec::new();
-                            let mut teachers = Vec::new();
-                            let mut classrooms = Vec::new();
+                        let mut subjects_tmp = Vec::new();
+                        let mut teachers = Vec::new();
+                        let mut classrooms = Vec::new();
 
-                            cell.select(&"span.p".to_sel())
-                                .zip(0..)
-                                .for_each(|(x, _num)| subjects_tmp.push(x.inner_html()));
-                            cell.select(&".n".to_sel())
-                                .zip(0..)
-                                .for_each(|(x, _num)| teachers.push(x.inner_html()));
-                            cell.select(&"span.s".to_sel())
-                                .zip(0..)
-                                .for_each(|(x, _num)| classrooms.push(x.inner_html()));
+                        cell.select(&"span.p".to_sel())
+                            .zip(0..)
+                            .for_each(|(x, _num)| subjects_tmp.push(x.inner_html()));
+                        cell.select(&".n".to_sel())
+                            .zip(0..)
+                            .for_each(|(x, _num)| teachers.push(x.inner_html()));
+                        cell.select(&"span.s".to_sel())
+                            .zip(0..)
+                            .for_each(|(x, _num)| classrooms.push(x.inner_html()));
 
-                            for (i, subject) in subjects_tmp.iter().enumerate() {
-                                subjects.push(Subject {
-                                    subject: subject.clone(),
-                                    teacher: teachers.get(i).unwrap_or(&"".to_owned()).clone(),
-                                    classroom: classrooms.get(i).unwrap_or(&"".to_owned()).clone(),
-                                })
-                            }
-                            Some(Column {
-                                lesson_number: j,
-                                subjects,
-                            })
-                        } else {
-                            let subject = match cell.select(&"span.p".to_sel()).next() {
-                                Some(v) => v.inner_html(),
-                                None => cell.inner_html().split(' ').collect::<Vec<&str>>()[1]
-                                    .to_owned(),
-                            };
-                            let teacher = match cell.select(&".n".to_sel()).next() {
-                                Some(v) => v.inner_html(),
-                                None => cell.inner_html().split(' ').collect::<Vec<&str>>()[0]
-                                    .to_owned(),
-                            };
-                            let classroom = match cell.select(&"span.s".to_sel()).next() {
-                                Some(v) => v.inner_html(),
-                                None => {
-                                    let _cell = cell.inner_html();
-                                    let vec = _cell.split(' ').collect::<Vec<&str>>();
-                                    let len = vec.len();
-                                    vec[len - 1].to_owned()
-                                }
-                            };
-
-                            Some(Column {
-                                lesson_number: i,
-                                subjects: vec![Subject {
-                                    subject,
-                                    teacher,
-                                    classroom,
-                                }],
-                            })
+                        for (i, subject) in subjects_tmp.iter().enumerate() {
+                            subjects.push(Subject {
+                                subject: subject.clone(),
+                                teacher: teachers.get(i).unwrap_or(&String::new()).clone(),
+                                classroom: classrooms.get(i).unwrap_or(&String::new()).clone(),
+                            });
                         }
+                        Some(Column {
+                            lesson_number: j,
+                            subjects,
+                        })
                     } else {
-                        None
-                    };
+                        let subject = cell.select(&"span.p".to_sel()).next().map_or_else(
+                            || cell.inner_html().split(' ').collect::<Vec<&str>>()[1].to_owned(),
+                            |v| v.inner_html(),
+                        );
+                        let teacher = cell.select(&".n".to_sel()).next().map_or_else(
+                            || cell.inner_html().split(' ').collect::<Vec<&str>>()[0].to_owned(),
+                            |v| v.inner_html(),
+                        );
+                        let classroom = cell.select(&"span.s".to_sel()).next().map_or_else(
+                            || {
+                                let cell = cell.inner_html();
+                                let vec = cell.split(' ').collect::<Vec<&str>>();
+                                let len = vec.len();
+                                vec[len - 1].to_owned()
+                            },
+                            |v| v.inner_html(),
+                        );
+
+                        Some(Column {
+                            lesson_number: i,
+                            subjects: vec![Subject {
+                                subject,
+                                teacher,
+                                classroom,
+                            }],
+                        })
+                    }
+                };
 
                 match query.direction.clone().unwrap_or_default() {
                     Type::Column => match j {
@@ -163,12 +159,10 @@ pub async fn plan(path: web::Path<String>, query: web::Query<PlanQuery>) -> Http
                 };
             });
 
-            match query.direction.clone().unwrap_or_default() {
-                Type::Row => {
-                    lessons_row.push(lessons);
-                }
-                _ => {}
+            if let Type::Row = query.direction.clone().unwrap_or_default() {
+                lessons_row.push(lessons);
             }
+
             hours.push(hour.inner_html().replace(' ', ""));
         }
     });

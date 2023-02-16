@@ -11,6 +11,6 @@ pub trait Scraper {
 
 impl Scraper for str {
     fn to_sel(&self) -> Selector {
-        Selector::parse(&self).unwrap()
+        Selector::parse(self).unwrap()
     }
 }

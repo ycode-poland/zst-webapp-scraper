@@ -10,7 +10,7 @@ pub enum IdType {
 }
 
 impl IdType {
-    pub fn to_int(&self) -> u8 {
+    pub const fn to_int(&self) -> u8 {
         match self {
             Self::Class => 2,
             Self::Teacher => 4,
@@ -20,7 +20,7 @@ impl IdType {
 
 pub async fn get_id(name: &String, id_type: IdType) -> String {
     let mut map: HashMap<String, String> = HashMap::new();
-    let response = get_html(format!("http://www.zstrzeszow.pl/plan/lista.html"))
+    let response = get_html("http://www.zstrzeszow.pl/plan/lista.html".to_owned())
         .await
         .unwrap();
 
@@ -36,11 +36,8 @@ pub async fn get_id(name: &String, id_type: IdType) -> String {
             .unwrap()
             .replace("plany/", "")
             .replace(".html", "");
-        let name: String;
-        match &id_type {
-            IdType::Class => {
-                name = value.inner_html();
-            }
+        let name: String = match &id_type {
+            IdType::Class => value.inner_html(),
             IdType::Teacher => {
                 let val = value
                     .inner_html()
@@ -48,10 +45,10 @@ pub async fn get_id(name: &String, id_type: IdType) -> String {
                     .rev()
                     .take(3)
                     .collect::<String>()
-                    .replace(")", "");
-                name = val.chars().rev().collect();
+                    .replace(')', "");
+                val.chars().rev().collect()
             }
-        }
+        };
         map.insert(name, url);
     });
 

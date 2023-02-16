@@ -12,7 +12,7 @@ mod entities;
 mod utils;
 use utils::str_convert::convert;
 
-use crate::controllers::plan_controller::*;
+use crate::controllers::plan_controller::{plan, plans, teachers};
 use crate::entities::class::Class;
 
 #[derive(Debug, Clone)]
@@ -38,8 +38,8 @@ async fn main() -> std::io::Result<()> {
 
     let state = AppState {
         class_list: vec![Class {
-            index: "".to_string(),
-            name: "".to_string(),
+            index: String::new(),
+            name: String::new(),
             year: 0,
         }],
     };
