@@ -1,4 +1,4 @@
-use actix_web::HttpResponse;
+use actix_web::{HttpResponse, Responder};
 use scraper::Html;
 use serde_json::json;
 
@@ -6,15 +6,14 @@ use crate::{
     entities::class::Teacher,
     utils::list::IdType,
     utils::scraper::{get_html, Scraper},
+    ApiError,
 };
 
 /**
  * @route GET /teachers
  */
-pub async fn teachers() -> HttpResponse {
-    let response = get_html("http://www.zstrzeszow.pl/plan/lista.html".to_string())
-        .await
-        .unwrap();
+pub async fn teachers() -> Result<impl Responder, ApiError> {
+    let response = get_html("http://www.zstrzeszow.pl/plan/lista.html".to_string()).await?;
 
     let document = scraper::Html::parse_document(&response);
     let plans_s = format!("ul:nth-child({}) > li", IdType::Teacher.to_int()).to_sel();
@@ -37,11 +36,11 @@ pub async fn teachers() -> HttpResponse {
         teachers.push(Teacher {
             index,
             initials,
-            name,
+            name: name.trim().to_owned(),
         });
     });
 
-    HttpResponse::Ok()
+    Ok(HttpResponse::Ok()
         .content_type("application/json")
-        .json(json! { teachers })
+        .json(json! { teachers }))
 }
