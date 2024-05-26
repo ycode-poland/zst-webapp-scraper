@@ -21,17 +21,19 @@ pub async fn teachers() -> Result<impl Responder, ApiError> {
 
     let mut teachers: Vec<Teacher> = Vec::new();
 
-    plans.zip(1..30).for_each(|(item, _i)| {
+    plans.zip(1..99).for_each(|(item, _i)| {
         let fragment = Html::parse_fragment(&item);
 
         let fragment_select = fragment.select(&"a".to_sel()).next().unwrap();
         let index = fragment_select.value().attr("href").unwrap()[6..]
             .to_string()
             .replace(".html", "");
-        let teacher_name_len = fragment_select.inner_html().len();
-        let name = fragment_select.inner_html()[0..&teacher_name_len - 5].to_string();
-        let initials =
-            fragment_select.inner_html()[&teacher_name_len - 3..&teacher_name_len - 1].to_string();
+        let chars: Vec<char> = fragment_select.inner_html().chars().collect();
+        let teacher_name_len = chars.len();
+        let name: String = chars[0..&teacher_name_len - 5].iter().collect();
+        let initials: String = chars[&teacher_name_len - 3..&teacher_name_len - 1]
+            .iter()
+            .collect();
 
         teachers.push(Teacher {
             index,
